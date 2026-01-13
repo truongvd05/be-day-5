@@ -4,6 +4,19 @@ import jwtService from "#service/jwtService.js";
 
 const register = async (req, res) => {
     const { email, password } = req.body;
+    if (!email || typeof email !== "string" || email.trim().length === 0) {
+        return res.error(
+            { message: "Email is required and must be valid" },
+            400
+        );
+    }
+
+    if (!password || typeof password !== "string" || password.length < 6) {
+        return res.error(
+            { message: "Password must be at least 6 characters" },
+            400
+        );
+    }
     try {
         const emailUser = await authModel.findUserByEmail(email);
         if (emailUser.length > 0) {
@@ -20,7 +33,7 @@ const register = async (req, res) => {
 
         res.success(
             {
-                id: result.insertId,
+                user_id: result.insertId,
                 email,
             },
             201,
@@ -36,11 +49,25 @@ const register = async (req, res) => {
 
 const login = async (req, res) => {
     const { email, password } = req.body;
+    if (!email || typeof email !== "string" || email.trim().length === 0) {
+        return res.error(
+            { message: "Email is required and must be valid" },
+            400
+        );
+    }
+
+    if (!password || typeof password !== "string" || password.length < 6) {
+        return res.error(
+            { message: "Password must be at least 6 characters" },
+            400
+        );
+    }
     try {
         const user = await authModel.findUserByEmailAndPassword(
             email,
             password
         );
+
         if (user.length === 0) {
             return res.error(
                 {

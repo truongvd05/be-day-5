@@ -2,38 +2,59 @@ import conversationsModel from "../models/conversations.model.js";
 import userModel from "../models/user.model.js";
 
 const getAllConversation = async (req, res) => {
-    console.log(123);
+    const user_id = req.user.user_id;
     try {
-        const rows = await conversationsModel.getAll();
+        const rows = await conversationsModel.getUserConversations(user_id);
         return res.success(rows, 200);
     } catch (err) {
-        console.log(err);
+        return res.error({ message: "Internal server error" }, 500);
     }
 };
 
 const createConversations = async (req, res) => {
-    const { name, type } = req.body;
+    const { name, type, participant_ids } = req.body;
     const userName = req.user.email;
     const typeString =
         typeof type === "string" ? type.toLowerCase().trim() : "";
+    if (!type || !["group", "direct"].includes(typeString)) {
+        return res.error({ message: "Invalid conversation type" }, 400);
+    }
+    if (!name || name.trim().length < 3) {
+        return res.error(
+            { message: "name must be at least 3 characters" },
+            400
+        );
+    }
+    if (!Array.isArray(participant_ids)) {
+        return res.error({ message: "participant_ids must be an array" }, 400);
+    }
     try {
-        if (!type || !["group", "direct"].includes(typeString)) {
-            return res.error({ message: "Invalid conversation type" }, 400);
-        }
-        if (!name || name.trim().length < 3) {
-            return res.error(
-                { message: "name must be at least 3 characters" },
-                400
-            );
-        }
         const newConversation = await conversationsModel.create(
             userName,
             name,
             type
         );
-        return res.success({ message: "success" }, 201);
+        await conversationsModel.addUserToConversation(
+            user_id,
+            newConversation.insertId
+        );
+        for (const participantId of participant_ids) {
+            await conversationsModel.addUserToConversation(
+                participantId,
+                newConversation.insertId
+            );
+        }
+        return res.success(
+            {
+                id: newConversation.insertId,
+                name,
+                type,
+                created_by: user_id,
+            },
+            201
+        );
     } catch (err) {
-        console.log(err);
+        return res.error({ message: "Internal server error" }, 500);
     }
 };
 
@@ -143,17 +164,30 @@ const send = async (req, res) => {
 };
 const getAllMessage = async (req, res) => {
     const conversationId = +req.params.id;
+    const user_id = req.user.user_id;
     // validate conversation id
+    if (!Number.isInteger(conversationId) || conversationId <= 0) {
+        return res.error({ message: "Invalid conversation id" }, 400);
+    }
     try {
-        if (!Number.isInteger(conversationId) || conversationId <= 0) {
-            return res.error({ message: "Invalid conversation id" }, 400);
+        const conversation = await conversationsModel.getOne(conversationId);
+        if (!conversation) {
+            return res.error({ message: "conversation not found" }, 404);
         }
-        const messages = await conversationsModel.getAllMessageFromConversation(
+        const userIn = await conversationsModel.userInConversation(
+            user_id,
             conversationId
         );
+        if (!userIn) {
+            return res.error({ message: "Not a conversation member" }, 403);
+        }
+        const messages =
+            await conversationsModel.getAllMessageFromConversationWithSender(
+                conversationId
+            );
         res.success(messages, 200);
     } catch (err) {
-        console.log(err);
+        return res.error({ message: "Internal server error" }, 500);
     }
 };
 

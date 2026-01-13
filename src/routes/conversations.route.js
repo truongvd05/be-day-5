@@ -5,8 +5,16 @@ import authMeRequired from "#middlewares/authMeRequired.js";
 
 const conversationsRoute = express.Router();
 
-conversationsRoute.get("/", conversationsControllers.getAllConversation);
-conversationsRoute.get("/:id/messages", conversationsControllers.getAllMessage);
+conversationsRoute.get(
+    "/",
+    authMeRequired,
+    conversationsControllers.getAllConversation
+);
+conversationsRoute.get(
+    "/:id/messages",
+    authMeRequired,
+    conversationsControllers.getAllMessage
+);
 conversationsRoute.post(
     "/",
     authMeRequired,
@@ -14,6 +22,7 @@ conversationsRoute.post(
 );
 conversationsRoute.post(
     "/:id/participants",
+    authMeRequired,
     conversationsControllers.addMember
 );
 

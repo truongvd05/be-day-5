@@ -20,11 +20,11 @@ const create = async (userName, conversationName, type) => {
     );
     return rows;
 };
-const addUserToConversation = async (name, user_id, conversation_id) => {
+const addUserToConversation = async (user_id, conversation_id) => {
     const [rows] = await pool.query(
         `INSERT INTO conversation_participants (conversation_id, user_id)
         VALUES (?, ?);`,
-        [name, conversation_id, user_id]
+        [conversation_id, user_id]
     );
     return rows;
 };
@@ -53,6 +53,31 @@ const getAllMessageFromConversation = async (conversation_id) => {
     return rows;
 };
 
+const getUserConversations = async (user_id) => {
+    const [rows] = await pool.query(
+        `SELECT DISTINCT c.* FROM conversations c
+         JOIN conversation_participants cp ON c.id = cp.conversation_id
+         WHERE cp.user_id = ?
+         ORDER BY c.created_at DESC`,
+        [user_id]
+    );
+    return rows;
+};
+
+const getAllMessageFromConversationWithSender = async (conversation_id) => {
+    const [rows] = await pool.query(
+        `SELECT m.id, m.conversation_id, 
+                JSON_OBJECT('id', u.user_id, 'email', u.email) as sender,
+                m.content, m.created_at
+         FROM messages m
+         JOIN users u ON m.sender_id = u.user_id
+         WHERE m.conversation_id = ?
+         ORDER BY m.created_at ASC`,
+        [conversation_id]
+    );
+    return rows;
+};
+
 export default {
     getAll,
     getOne,
@@ -61,4 +86,6 @@ export default {
     create,
     addMessage,
     getAllMessageFromConversation,
+    getUserConversations,
+    getAllMessageFromConversationWithSender,
 };
